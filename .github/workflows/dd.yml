@@ -1,0 +1,31 @@
+name: Run Chromium with Pinggy
+on: workflow_dispatch
+
+jobs:
+  run-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start linuxserver/chromium
+        run: |
+          docker run -d \
+            --name=chromium \
+            --security-opt seccomp=unconfined \
+            -e PUID=1000 \
+            -e PGID=1000 \
+            -e TZ=Etc/UTC \
+            -p 3000:3000 \
+            --shm-size="1gb" \
+            lscr.io/linuxserver/chromium:latest
+
+      - name: Start Pinggy Tunnel
+        run: |
+          # הפקודה הזו רצה בתוך גיטהאב ופותחת את פורט 3000 לאינטרנט
+          ssh -p 443 -R0:localhost:3000 -o StrictHostKeyChecking=no a.pinggy.io > pinggy.log &
+          sleep 10
+          echo "====================================="
+          echo "YOUR BROWSER LINK IS READY:"
+          cat pinggy.log | grep -o 'https://[a-zA-Z0-9.\-]*\.pinggy\.link'
+          echo "====================================="
+
+      - name: Keep Alive
+        run: sleep 6h # משאיר את השרת דולק לעד 6 שעות
