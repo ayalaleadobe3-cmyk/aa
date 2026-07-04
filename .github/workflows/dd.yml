@@ -1,21 +1,31 @@
-name: Run Chromium with Tmate
+name: Run Chromium Pro Setup
 on: workflow_dispatch
 
 jobs:
-  run-browser-tmate:
+  run-browser-pro:
     runs-on: ubuntu-latest
     steps:
       - name: Start Chromium Container
         run: |
           docker run -d \
             --name=chromium \
+            --privileged \
             --security-opt seccomp=unconfined \
             -e PUID=1000 \
             -e PGID=1000 \
             -e TZ=Etc/UTC \
             -p 3000:3000 \
-            --shm-size="1gb" \
+            -p 3001:3001 \
+            --shm-size="2gb" \
             lscr.io/linuxserver/chromium:latest
+
+      - name: Wait for Chromium to boot
+        run: |
+          echo "Waiting 15 seconds for KasmVNC to initialize..."
+          sleep 15
+          echo "=== CONTAINER LOGS ==="
+          docker logs chromium
+          echo "======================"
 
       - name: Start Tmate Tunnel
         uses: mxschmitt/action-tmate@v3
