@@ -1,21 +1,97 @@
-name: Chromium NetFree
-on: workflow_dispatch
+name: Xray Tunnel
+
+on:
+  workflow_dispatch:
 
 jobs:
-  run-browser:
+  tunnel:
     runs-on: ubuntu-latest
+    timeout-minutes: 350   # מקסימום שגיטהאב מרשה בערך (5:50 שעות), תעדכן לפי הצורך
     steps:
-      - name: Run Chromium Container
+      - name: Install Xray-core
         run: |
-          docker run -d \
-            --name=chromium \
-            --security-opt seccomp=unconfined \
-            -e PUID=1000 \
-            -e PGID=1000 \
-            -e TZ=Etc/UTC \
-            -p 127.0.0.1:3000:3000 \
-            --shm-size="2gb" \
-            lscr.io/linuxserver/chromium:latest
+          bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
+          xray version
 
-      - name: Setup Tmate Tunnel
-        uses: mxschmitt/action-tmate@v3
+      - name: Generate keys and UUID
+        id: gen
+        run: |
+          UUID=$(xray uuid)
+          KEYS=$(xray x25519)
+          PRIVATE_KEY=$(echo "$KEYS" | grep -i "Private" | awk '{print $3}')
+          PUBLIC_KEY=$(echo "$KEYS" | grep -i "Password" | awk '{print $3}')
+          SHORT_ID=$(openssl rand -hex 8)
+          echo "uuid=$UUID" >> "$GITHUB_OUTPUT"
+          echo "private_key=$PRIVATE_KEY" >> "$GITHUB_OUTPUT"
+          echo "public_key=$PUBLIC_KEY" >> "$GITHUB_OUTPUT"
+          echo "short_id=$SHORT_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Write Xray config
+        run: |
+          sudo mkdir -p /usr/local/etc/xray
+          sudo tee /usr/local/etc/xray/config.json > /dev/null <<EOF
+          {
+            "log": { "loglevel": "warning" },
+            "inbounds": [
+              {
+                "listen": "0.0.0.0",
+                "port": 443,
+                "protocol": "vless",
+                "settings": {
+                  "clients": [
+                    { "id": "${{ steps.gen.outputs.uuid }}", "flow": "xtls-rprx-vision" }
+                  ],
+                  "decryption": "none"
+                },
+                "streamSettings": {
+                  "network": "tcp",
+                  "security": "reality",
+                  "realitySettings": {
+                    "dest": "www.microsoft.com:443",
+                    "serverNames": ["www.microsoft.com"],
+                    "privateKey": "${{ steps.gen.outputs.private_key }}",
+                    "shortIds": ["${{ steps.gen.outputs.short_id }}"]
+                  }
+                }
+              }
+            ],
+            "outbounds": [
+              { "protocol": "freedom" }
+            ]
+          }
+          EOF
+
+      - name: Get runner public IP
+        id: ip
+        run: |
+          MYIP=$(curl -s https://api.ipify.org)
+          echo "ip=$MYIP" >> "$GITHUB_OUTPUT"
+
+      - name: Print connection details
+        run: |
+          echo "=================================================="
+          echo "IP:          ${{ steps.ip.outputs.ip }}"
+          echo "Port:        443"
+          echo "UUID:        ${{ steps.gen.outputs.uuid }}"
+          echo "Public Key:  ${{ steps.gen.outputs.public_key }}"
+          echo "Short ID:    ${{ steps.gen.outputs.short_id }}"
+          echo "SNI:         www.microsoft.com"
+          echo "Flow:        xtls-rprx-vision"
+          echo "=================================================="
+          echo "VLESS URI:"
+          echo "vless://${{ steps.gen.outputs.uuid }}@${{ steps.ip.outputs.ip }}:443?security=reality&sni=www.microsoft.com&fp=chrome&pbk=${{ steps.gen.outputs.public_key }}&sid=${{ steps.gen.outputs.short_id }}&type=tcp&flow=xtls-rprx-vision#gh-tunnel"
+          echo "=================================================="
+
+      - name: Run Xray in background
+        run: |
+          sudo nohup xray run -config /usr/local/etc/xray/config.json > /tmp/xray.log 2>&1 &
+          sleep 3
+          sudo cat /tmp/xray.log || true
+
+      - name: Keep runner alive
+        run: |
+          echo "Tunnel is up. Keeping runner alive..."
+          for i in $(seq 1 340); do
+            sleep 60
+            echo "Alive: $i minutes"
+          done
