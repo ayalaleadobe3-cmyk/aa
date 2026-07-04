@@ -19,12 +19,16 @@ jobs:
 
       - name: Start Pinggy Tunnel
         run: |
-          # הפקודה הזו רצה בתוך גיטהאב ופותחת את פורט 3000 לאינטרנט
-          ssh -p 443 -R0:localhost:3000 -o StrictHostKeyChecking=no a.pinggy.io > pinggy.log &
+          # התוספת 2>&1 דואגת ללכוד את כל הפלט של ה-SSH לתוך הקובץ
+          ssh -p 443 -R0:localhost:3000 -o StrictHostKeyChecking=no a.pinggy.io > pinggy.log 2>&1 &
+          
+          # נותנים למנהרה כמה שניות להתחבר
           sleep 10
+          
           echo "====================================="
           echo "YOUR BROWSER LINK IS READY:"
-          cat pinggy.log | grep -o 'https://[a-zA-Z0-9.\-]*\.pinggy\.link'
+          # מדפיסים את כל הלוג כדי שתוכלי למצוא את הקישור בקלות
+          cat pinggy.log
           echo "====================================="
 
       - name: Keep Alive
