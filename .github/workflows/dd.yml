@@ -1,25 +1,21 @@
-name: Run Chromium Pro Setup
+name: Chromium NetFree
 on: workflow_dispatch
 
 jobs:
-  run-browser-pro:
+  run-browser:
     runs-on: ubuntu-latest
     steps:
-      - name: Start Chromium Container
+      - name: Run Chromium Container
         run: |
           docker run -d \
             --name=chromium \
-            --privileged \
-            --network host \
             --security-opt seccomp=unconfined \
             -e PUID=1000 \
             -e PGID=1000 \
             -e TZ=Etc/UTC \
+            -p 127.0.0.1:3000:3000 \
             --shm-size="2gb" \
             lscr.io/linuxserver/chromium:latest
 
-      - name: Wait for Chromium boot
-        run: sleep 10
-
-      - name: Start Tmate Tunnel
+      - name: Setup Tmate Tunnel
         uses: mxschmitt/action-tmate@v3
