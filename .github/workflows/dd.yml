@@ -1,11 +1,11 @@
-name: Run Chromium with Pinggy
+name: Run Chromium with Tmate
 on: workflow_dispatch
 
 jobs:
-  run-browser:
+  run-browser-tmate:
     runs-on: ubuntu-latest
     steps:
-      - name: Start linuxserver/chromium
+      - name: Start Chromium Container
         run: |
           docker run -d \
             --name=chromium \
@@ -17,19 +17,5 @@ jobs:
             --shm-size="1gb" \
             lscr.io/linuxserver/chromium:latest
 
-      - name: Start Pinggy Tunnel
-        run: |
-          # התוספת 2>&1 דואגת ללכוד את כל הפלט של ה-SSH לתוך הקובץ
-          ssh -p 443 -R0:localhost:3000 -o StrictHostKeyChecking=no a.pinggy.io > pinggy.log 2>&1 &
-          
-          # נותנים למנהרה כמה שניות להתחבר
-          sleep 10
-          
-          echo "====================================="
-          echo "YOUR BROWSER LINK IS READY:"
-          # מדפיסים את כל הלוג כדי שתוכלי למצוא את הקישור בקלות
-          cat pinggy.log
-          echo "====================================="
-
-      - name: Keep Alive
-        run: sleep 6h # משאיר את השרת דולק לעד 6 שעות
+      - name: Start Tmate Tunnel
+        uses: mxschmitt/action-tmate@v3
