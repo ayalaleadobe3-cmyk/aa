@@ -1,0 +1,31 @@
+name: Download File and Save to Artifacts
+
+on:
+  # מאפשר להריץ את ה-Workflow ידנית מתוך לשונית Actions בגיטהאב, ולהזין URL
+  workflow_dispatch:
+    inputs:
+      file_url:
+        description: 'הכנס את כתובת ה-URL להורדה'
+        required: true
+        default: 'https://example.com/file.zip'
+
+jobs:
+  download-and-save:
+    runs-on: ubuntu-latest
+
+    steps:
+      # שלב 1: יצירת תיקייה ייעודית והורדת הקובץ אליה
+      - name: Download File
+        run: |
+          mkdir -p downloaded_files
+          cd downloaded_files
+          # מוריד את הקובץ ושומר אותו בשמו המקורי מה-URL
+          curl -O -L "${{ github.event.inputs.file_url }}"
+          
+      # שלב 2: העלאת התיקייה כ-Artifact של הריצה הנוכחית
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: downloaded-file-artifact  # השם שיופיע בגיטהאב עבור ה-Artifact
+          path: downloaded_files/          # נתיב התיקייה שמכילה את הקובץ שהורד
+          retention-days: 5                # למשך כמה ימים לשמור את הקובץ (אופציונלי)
